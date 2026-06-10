@@ -1,19 +1,24 @@
 import { expect, test } from '@playwright/test';
+import { createTaskFromModal, deleteTaskByTitle, goToTasks } from './helpers/auth.js';
 
-test('Gestion de tareas permite cambiar estado a completada', async ({ page }) => {
+test('Gestion de tareas permite cambiar estado desde el modal', async ({ page }) => {
   const taskTitle = `Estado E2E ${Date.now()}`;
 
-  await page.goto('/tasks');
-  await page.getByRole('button', { name: /Nueva tarea/i }).click();
-  await page.getByLabel(/Titulo de la tarea/i).fill(taskTitle);
-  await page.getByLabel(/Estado/i).selectOption('pendiente');
-  await page.getByRole('button', { name: /Guardar/i }).click();
+  await goToTasks(page);
+  await createTaskFromModal(page, taskTitle, {
+    status: 'pendiente'
+  });
 
   const row = page.locator('tr').filter({ hasText: taskTitle });
   await expect(row).toBeVisible();
-  await row.locator('select').selectOption('completada');
-  await expect(row.locator('select')).toHaveValue('completada');
+  await row.getByTitle('Editar tarea').click();
 
-  page.once('dialog', (dialog) => dialog.accept());
-  await row.getByTitle('Eliminar tarea').click();
+  await expect(page.getByRole('heading', { name: /editar tarea/i })).toBeVisible();
+  await page.getByLabel(/estado/i).last().selectOption('completada');
+  await page.getByRole('button', { name: /actualizar/i }).click();
+
+  const updatedRow = page.locator('tr').filter({ hasText: taskTitle });
+  await expect(updatedRow.getByText(/completada/i)).toBeVisible();
+
+  await deleteTaskByTitle(page, taskTitle);
 });

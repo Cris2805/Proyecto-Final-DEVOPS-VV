@@ -1,41 +1,36 @@
 import { expect, test } from '@playwright/test';
+import { createTaskFromModal, deleteTaskByTitle, goToTasks, login } from './helpers/auth.js';
 
 test('Login carga correctamente', async ({ page }) => {
   await page.goto('/login');
 
-  await expect(page.getByRole('heading', { name: /Bienvenido de nuevo/i })).toBeVisible();
-  await expect(page.getByPlaceholder('tu@correo.com')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Iniciar sesion|Iniciar sesión/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /bienvenido de nuevo/i })).toBeVisible();
+  await expect(page.locator('input[type="email"]')).toBeVisible();
+  await expect(page.getByRole('button', { name: /iniciar sesi[oó]n/i })).toBeVisible();
 });
 
-test('Gestion de tareas permite crear, cambiar estado y eliminar una tarea', async ({ page }) => {
+test('Login real navega al Dashboard', async ({ page }) => {
+  await login(page);
+
+  await expect(page.getByRole('heading', { name: /panel de tareas/i })).toBeVisible();
+});
+
+test('Gestion de tareas permite crear una tarea desde modal', async ({ page }) => {
   const taskTitle = `Tarea E2E ${Date.now()}`;
 
-  await page.goto('/tasks');
-  await expect(page.getByRole('heading', { name: /Gestion de tareas|Gestión de tareas/i })).toBeVisible();
-
-  await page.getByRole('button', { name: /Nueva tarea/i }).click();
-  await page.getByLabel(/Titulo de la tarea/i).fill(taskTitle);
-  await page.getByLabel(/Descripcion/i).fill('Tarea creada desde Playwright para evidencia E2E.');
-  await page.getByLabel(/Fecha limite/i).locator('input').fill('2026-07-10');
-  await page.getByLabel(/Estado/i).selectOption('pendiente');
-  await page.getByLabel(/Prioridad/i).selectOption('alta');
-  await page.getByLabel(/Responsable/i).fill('QA E2E');
-  await page.getByLabel(/Proyecto/i).fill('TaskFlow V&V');
-  await page.getByLabel(/Etiquetas/i).fill('e2e,playwright');
-  await page.getByRole('button', { name: /Guardar/i }).click();
-
-  const createdRow = page.locator('tr').filter({ hasText: taskTitle });
-  await expect(createdRow).toBeVisible();
-
-  await createdRow.locator('select').selectOption('en_progreso');
-  await expect(createdRow.locator('select')).toHaveValue('en_progreso');
-
-  page.once('dialog', async (dialog) => {
-    expect(dialog.message()).toContain(taskTitle);
-    await dialog.accept();
+  await goToTasks(page);
+  const createdRow = await createTaskFromModal(page, taskTitle, {
+    dueDate: '2026-07-10',
+    status: 'pendiente',
+    priority: 'alta',
+    responsible: 'QA E2E',
+    project: 'TaskFlow V&V',
+    tags: 'e2e,playwright'
   });
-  await createdRow.getByTitle('Eliminar tarea').click();
 
-  await expect(createdRow).toHaveCount(0);
+  await expect(createdRow).toBeVisible();
+  await expect(createdRow.getByText(/pendiente/i)).toBeVisible();
+  await expect(createdRow.locator('select')).toHaveCount(0);
+
+  await deleteTaskByTitle(page, taskTitle);
 });
