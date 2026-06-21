@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 const TASKS_URL = `${API_URL}/tasks`;
 
 async function requestJson(url, options = {}) {
